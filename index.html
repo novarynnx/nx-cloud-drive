@@ -1,0 +1,309 @@
+
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NX Cloud Drive</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{color-scheme:dark;--bg:#0b0d12;--panel:#131722;--line:#282e3d;--text:#edf0fa;--muted:#969fb4;--accent:#a78bfa}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px system-ui,sans-serif}
+button,input{font:inherit}button{background:#252b3b;color:white;border:1px solid var(--line);padding:10px 13px;border-radius:10px;cursor:pointer}
+button.primary{background:#8b5cf6;border-color:#8b5cf6}button.danger{color:#ff9eaa}
+input{background:#0c1019;color:white;border:1px solid var(--line);padding:12px;border-radius:10px;width:100%;min-width:0}
+header{padding:18px 22px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{font-size:19px;font-weight:800;letter-spacing:.5px}.brand span{color:var(--accent)}
+main{max-width:1100px;margin:auto;padding:22px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:16px}
+.auth{max-width:420px;margin:9vh auto}.muted{color:var(--muted);font-size:13px}
+.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.row>*{max-width:100%}.spacer{flex:1}.toolbar{margin:18px 0}
+#items{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}
+.item{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px;min-width:0}
+.item .name{font-weight:650;overflow-wrap:anywhere;margin:10px 0}
+.item .actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.item button{font-size:12px;padding:7px 9px}
+.icon{font-size:26px;color:var(--accent)}h1{font-size:25px;margin:0 0 5px}
+#status{margin:12px 0;color:#c4b5fd;overflow-wrap:anywhere}
+#auth,#drive{display:none}
+@media(max-width:600px){main{padding:14px}header{padding:14px}.panel{padding:14px}#items{grid-template-columns:repeat(2,minmax(0,1fr))}.item{padding:11px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">NX <span>CLOUD DRIVE</span></div>
+  <button id="logout" hidden>ออกจากระบบ</button>
+</header>
+
+<main>
+<section id="auth" class="panel auth">
+  <h1>ยินดีต้อนรับ</h1>
+  <p class="muted">พื้นที่เก็บไฟล์ส่วนตัวของคุณ</p>
+  <form id="authForm">
+    <p><input id="email" type="email" placeholder="อีเมล" autocomplete="email" required></p>
+    <p><input id="password" type="password" placeholder="รหัสผ่าน" autocomplete="current-password" required minlength="6"></p>
+    <div class="row">
+      <button class="primary" type="submit" data-mode="login">เข้าสู่ระบบ</button>
+      <button type="submit" data-mode="signup">สมัครสมาชิก</button>
+    </div>
+  </form>
+  <p id="authMsg" class="muted"></p>
+</section>
+
+<section id="drive">
+  <div class="panel">
+    <h1>ไฟล์ของฉัน</h1>
+    <p class="muted">Private Cloud Storage · ไฟล์ของคุณเท่านั้น</p>
+    <div class="row toolbar">
+      <button class="primary" id="uploadBtn">＋ อัปโหลดไฟล์</button>
+      <input id="fileInput" type="file" multiple hidden>
+      <button id="newFolder">＋ สร้างโฟลเดอร์</button>
+      <button id="refresh">↻ รีเฟรช</button>
+    </div>
+    <input id="search" placeholder="ค้นหาไฟล์หรือโฟลเดอร์...">
+    <p id="crumb" class="muted">ตำแหน่ง: ไฟล์ของฉัน</p>
+    <p id="status" role="status"></p>
+  </div>
+  <div id="items"></div>
+</section>
+</main>
+
+<script>
+const SUPABASE_URL = "https://jlpjvrribbjtdhdenpsh.supabase.co/rest/v1/";
+const SUPABASE_KEY = "sb_publishable_BiKDAGYZQVNJWC0yD9ldsA_99wcLTIw";
+const BUCKET = "nx-assets";
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let user = null;
+let currentFolder = null;
+let folders = [];
+let entries = [];
+
+const $ = id => document.getElementById(id);
+const say = msg => $("status").textContent = msg;
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({
+  "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+}[c]));
+const sizeText = n => {
+  if (n < 1024) return n + " B";
+  if (n < 1048576) return (n/1024).toFixed(1) + " KB";
+  if (n < 1073741824) return (n/1048576).toFixed(1) + " MB";
+  return (n/1073741824).toFixed(2) + " GB";
+};
+
+function showAuth() {
+  $("auth").style.display = "block";
+  $("drive").style.display = "none";
+  $("logout").hidden = true;
+}
+function showDrive() {
+  $("auth").style.display = "none";
+  $("drive").style.display = "block";
+  $("logout").hidden = false;
+}
+
+async function runAuth(mode) {
+  $("authMsg").textContent = "กำลังดำเนินการ...";
+  const email = $("email").value.trim();
+  const password = $("password").value;
+  const result = mode === "signup"
+    ? await db.auth.signUp({email,password})
+    : await db.auth.signInWithPassword({email,password});
+
+  if (result.error) {
+    $("authMsg").textContent = result.error.message;
+    return;
+  }
+  if (mode === "signup" && !result.data.session) {
+    $("authMsg").textContent =
+      "สมัครแล้ว โปรดตรวจอีเมลเพื่อยืนยันบัญชี แล้วกลับมาเข้าสู่ระบบ";
+    return;
+  }
+  $("authMsg").textContent = "";
+}
+
+$("authForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const mode = e.submitter?.dataset.mode || "login";
+  await runAuth(mode);
+});
+
+$("logout").onclick = async () => {
+  await db.auth.signOut();
+  user = null;
+  showAuth();
+};
+
+async function loadItems() {
+  if (!user) return;
+  say("กำลังโหลดรายการ...");
+  let q = db.from("nx_drive_items").select("*").order("name");
+  q = currentFolder
+    ? q.eq("parent_id", currentFolder)
+    : q.is("parent_id", null);
+
+  const {data,error} = await q;
+  if (error) {
+    say("โหลดรายการไม่สำเร็จ: " + error.message);
+    return;
+  }
+  entries = data || [];
+  renderItems();
+  updateCrumb();
+  say(entries.length ? `มี ${entries.length} รายการ` : "โฟลเดอร์นี้ยังว่างอยู่");
+}
+
+function updateCrumb() {
+  if (!currentFolder) {
+    $("crumb").textContent = "ตำแหน่ง: ไฟล์ของฉัน";
+    return;
+  }
+  const names = [];
+  let id = currentFolder;
+  while (id) {
+    const f = folders.find(x => x.id === id);
+    if (!f) break;
+    names.unshift(f.name);
+    id = f.parent_id;
+  }
+  $("crumb").textContent = "ตำแหน่ง: ไฟล์ของฉัน / " + names.join(" / ");
+}
+
+function renderItems() {
+  const term = $("search").value.trim().toLowerCase();
+  const filtered = entries.filter(x => x.name.toLowerCase().includes(term));
+  $("items").innerHTML = filtered.map(x => `
+    <article class="item">
+      <div class="icon">${x.item_type === "folder" ? "📁" : "▤"}</div>
+      <div class="name">${esc(x.name)}</div>
+      <div class="muted">${x.item_type === "folder" ? "โฟลเดอร์" : sizeText(Number(x.file_size))}</div>
+      <div class="actions">
+        ${x.item_type === "folder"
+          ? `<button data-act="open" data-id="${x.id}">เปิด</button>`
+          : `<button data-act="download" data-id="${x.id}">ดาวน์โหลด</button>`}
+        <button data-act="rename" data-id="${x.id}">เปลี่ยนชื่อ</button>
+        <button class="danger" data-act="delete" data-id="${x.id}">ลบ</button>
+      </div>
+    </article>`).join("");
+}
+
+$("items").addEventListener("click", async e => {
+  const b = e.target.closest("button[data-act]");
+  if (!b) return;
+  const item = entries.find(x => x.id === b.dataset.id);
+  if (!item) return;
+  const act = b.dataset.act;
+
+  if (act === "open") {
+    currentFolder = item.id;
+    await loadItems();
+    return;
+  }
+  if (act === "download") {
+    say("กำลังดาวน์โหลด...");
+    const {data,error} = await db.storage.from(BUCKET).download(item.storage_path);
+    if (error) { say("ดาวน์โหลดไม่สำเร็จ: " + error.message); return; }
+    const url = URL.createObjectURL(data);
+    const a = document.createElement("a");
+    a.href = url; a.download = item.name; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+    say("ดาวน์โหลดแล้ว");
+    return;
+  }
+  if (act === "rename") {
+    const name = prompt("ชื่อใหม่", item.name)?.trim();
+    if (!name || name === item.name) return;
+    const {error} = await db.from("nx_drive_items")
+      .update({name,updated_at:new Date().toISOString()}).eq("id",item.id);
+    if (error) { say("เปลี่ยนชื่อไม่สำเร็จ: " + error.message); return; }
+    await loadItems();
+    return;
+  }
+  if (act === "delete") {
+    if (!confirm(`ยืนยันลบ "${item.name}" ?`)) return;
+    if (item.item_type === "folder") {
+      const {count,error:checkErr} = await db.from("nx_drive_items")
+        .select("id",{count:"exact",head:true}).eq("parent_id",item.id);
+      if (checkErr) { say(checkErr.message); return; }
+      if (count > 0) { say("โฟลเดอร์ยังมีรายการอยู่ กรุณาย้ายหรือลบรายการข้างในก่อน"); return; }
+    } else {
+      const {error:storageErr} = await db.storage.from(BUCKET).remove([item.storage_path]);
+      if (storageErr) { say("ลบไฟล์ไม่สำเร็จ: " + storageErr.message); return; }
+    }
+    const {error} = await db.from("nx_drive_items").delete().eq("id",item.id);
+    if (error) { say("ลบรายการไม่สำเร็จ: " + error.message); return; }
+    await loadItems();
+  }
+});
+
+$("newFolder").onclick = async () => {
+  const name = prompt("ชื่อโฟลเดอร์")?.trim();
+  if (!name) return;
+  say("กำลังสร้างโฟลเดอร์...");
+  const {error} = await db.from("nx_drive_items").insert({
+    owner_id:user.id, parent_id:currentFolder,
+    item_type:"folder", name, storage_path:null
+  });
+  if (error) { say("สร้างโฟลเดอร์ไม่สำเร็จ: " + error.message); return; }
+  await loadFolders();
+  await loadItems();
+};
+
+async function loadFolders() {
+  const {data,error} = await db.from("nx_drive_items")
+    .select("id,name,parent_id").eq("item_type","folder");
+  if (error) { say(error.message); return; }
+  folders = data || [];
+}
+
+$("uploadBtn").onclick = () => $("fileInput").click();
+$("fileInput").addEventListener("change", async e => {
+  const files = Array.from(e.target.files || []);
+  e.target.value = "";
+  if (!files.length || !user) return;
+
+  for (const file of files) {
+    say("กำลังอัปโหลด: " + file.name);
+    const safeName = file.name.replace(/[\\/]/g,"_");
+    const path = `${user.id}/${crypto.randomUUID()}-${safeName}`;
+    const {error:upErr} = await db.storage.from(BUCKET)
+      .upload(path,file,{contentType:file.type || "application/octet-stream", upsert:false});
+    if (upErr) { say(`อัปโหลด ${file.name} ไม่สำเร็จ: ${upErr.message}`); continue; }
+
+    const {error:dbErr} = await db.from("nx_drive_items").insert({
+      owner_id:user.id, parent_id:currentFolder, item_type:"file",
+      name:file.name, storage_path:path,
+      mime_type:file.type || "application/octet-stream", file_size:file.size
+    });
+    if (dbErr) {
+      await db.storage.from(BUCKET).remove([path]);
+      say(`บันทึกรายการ ${file.name} ไม่สำเร็จ: ${dbErr.message}`);
+    }
+  }
+  await loadItems();
+});
+
+$("refresh").onclick = async () => {
+  await loadFolders();
+  await loadItems();
+};
+$("search").addEventListener("input",renderItems);
+
+async function start(session) {
+  user = session?.user || null;
+  if (!user) { showAuth(); return; }
+  currentFolder = null;
+  showDrive();
+  await loadFolders();
+  await loadItems();
+}
+
+db.auth.onAuthStateChange((_event,session) => {
+  start(session);
+});
+db.auth.getSession().then(({data}) => start(data.session));
+</script>
+</body>
+  </html>
+  
