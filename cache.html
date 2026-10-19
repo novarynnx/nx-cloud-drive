@@ -1,0 +1,490 @@
+
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NX Cache Manager</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{color-scheme:dark;--bg:#090b10;--panel:#11151e;--line:#252c3b;--text:#edf2ff;--muted:#8994aa;--accent:#8b9cff;--danger:#ff737d}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px system-ui,sans-serif}
+button,input{font:inherit}
+button{border:1px solid var(--line);background:#1a2030;color:var(--text);border-radius:10px;padding:10px 13px;cursor:pointer}
+button:disabled{opacity:.5;cursor:wait}
+button.primary{background:#687cf1;border-color:#687cf1;color:white}
+button.danger{color:var(--danger)}
+input{width:100%;background:#0b0f17;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:12px;outline:none}
+input:focus{border-color:var(--accent)}
+.wrap{max-width:1100px;margin:auto;padding:22px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:24px}
+.brand{font-size:19px;font-weight:800;letter-spacing:.5px}
+.brand span{color:var(--accent)}
+.muted{color:var(--muted)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:16px}
+h2{font-size:16px;margin:0 0 14px}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;min-width:0}
+.stat strong{display:block;font-size:23px;margin-top:5px;overflow-wrap:anywhere}
+.actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.actions input[type=file]{max-width:280px;padding:7px}
+.search{margin:12px 0}
+.list{display:grid;gap:9px}
+.entry{border:1px solid var(--line);border-radius:12px;padding:13px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center}
+.filename{font-weight:650;overflow-wrap:anywhere}
+.meta{font-size:12px;color:var(--muted);margin-top:5px;overflow-wrap:anywhere}
+.entry-actions{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+.hidden{display:none!important}
+.status{margin-top:12px;padding:10px;border-radius:9px;background:#191f2d;color:#cbd5ff;overflow-wrap:anywhere}
+.error{color:#ff9da4}
+.history-item{padding:9px 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}
+.history-item:last-child{border-bottom:0}
+footer{padding:12px 0 25px;color:var(--muted);font-size:12px}
+@media(max-width:650px){.wrap{padding:13px}.grid{grid-template-columns:1fr 1fr}.entry{grid-template-columns:1fr}.entry-actions{justify-content:flex-start}.panel{padding:14px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div>
+    <div class="brand">NX <span>CACHE MANAGER</span></div>
+    <div class="muted">Private file index · V1</div>
+  </div>
+  <div class="actions">
+    <button id="backBtn">Cloud Drive</button>
+    <button id="refreshBtn">Refresh</button>
+    <button id="logoutBtn">Logout</button>
+  </div>
+</header>
+
+<section id="loginPanel" class="panel hidden">
+  <h2>Sign in to NX Cloud</h2>
+  <form id="loginForm">
+    <label for="email">Email</label>
+    <input id="email" type="email" autocomplete="username" required>
+    <br><br>
+    <label for="password">Password</label>
+    <input id="password" type="password" autocomplete="current-password" required>
+    <br><br>
+    <button class="primary" type="submit">Sign in</button>
+  </form>
+</section>
+
+<section id="app" class="hidden">
+  <div class="grid">
+    <div class="stat"><span class="muted">Cache entries</span><strong id="count">0</strong></div>
+    <div class="stat"><span class="muted">Indexed size</span><strong id="totalSize">0 B</strong></div>
+    <div class="stat"><span class="muted">Account</span><strong id="account" style="font-size:13px">—</strong></div>
+  </div>
+
+  <section class="panel">
+    <h2>Upload to private cache</h2>
+    <div class="actions">
+      <input id="fileInput" type="file">
+      <button id="uploadBtn" class="primary">Upload file</button>
+    </div>
+    <p class="muted">ไฟล์จะอยู่ใน Private bucket nx-assets ภายใต้โฟลเดอร์ cache ของบัญชีนี้ จำกัดขนาดไฟล์ไว้ที่ 25 MB ต่อไฟล์</p>
+    <div id="status" class="status hidden" role="status" aria-live="polite"></div>
+  </section>
+
+  <section class="panel">
+    <h2>Cache entries</h2>
+    <input id="search" class="search" placeholder="Search filename or SHA-256…">
+    <div id="entries" class="list"></div>
+  </section>
+
+  <section class="panel">
+    <h2>Recent activity</h2>
+    <div id="history"><p class="muted">No activity loaded.</p></div>
+  </section>
+</section>
+
+<footer>NX Cloud Drive · Private storage · Browser client with Supabase RLS</footer>
+</div>
+
+<script>
+"use strict";
+
+/* ใช้ค่าเดียวกับ index.html เดิม
+   ห้ามใส่ service_role หรือ Secret key ในหน้านี้ */
+const SUPABASE_URL = "https://jlpjvrribbjtdhdenpsh.supabase.co/rest/v1/";
+const SUPABASE_KEY = "sb_publishable_BiKDAGYZQVNJWC0yD9ldsA_99wcLTIw";
+const BUCKET = "nx-assets";
+const MAX_FILE_SIZE = 25 * 1024 * 1024;
+
+const $ = id => document.getElementById(id);
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let currentUser = null;
+let entries = [];
+let busy = false;
+
+function showStatus(message, isError = false) {
+  const el = $("status");
+  el.textContent = message;
+  el.classList.remove("hidden", "error");
+  if (isError) el.classList.add("error");
+}
+function clearStatus() {
+  $("status").classList.add("hidden");
+}
+function setBusy(value) {
+  busy = value;
+  $("uploadBtn").disabled = value;
+  $("refreshBtn").disabled = value;
+}
+function formatBytes(value) {
+  if (!Number.isFinite(Number(value)) || Number(value) < 0) return "—";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let n = Number(value), i = 0;
+  while (n >= 1024 && i < units.length - 1) {
+    n /= 1024; i++;
+  }
+  return `${n.toFixed(i === 0 ? 0 : 2)} ${units[i]}`;
+}
+function safeFilename(name) {
+  const cleaned = name
+    .normalize("NFKC")
+    .replace(/[\/\\\u0000-\u001f\u007f]/g, "_")
+    .replace(/^\.+$/, "_")
+    .trim()
+    .slice(0, 180);
+  return cleaned || "file";
+}
+function makeId() {
+  return crypto.randomUUID();
+}
+async function sha256(file) {
+  const buffer = await file.arrayBuffer();
+  const digest = await crypto.subtle.digest("SHA-256", buffer);
+  return Array.from(new Uint8Array(digest))
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+function showApp(isLoggedIn) {
+  $("loginPanel").classList.toggle("hidden", isLoggedIn);
+  $("app").classList.toggle("hidden", !isLoggedIn);
+  $("logoutBtn").classList.toggle("hidden", !isLoggedIn);
+  $("refreshBtn").classList.toggle("hidden", !isLoggedIn);
+  $("account").textContent = currentUser?.email || "—";
+}
+async function logEvent(action, entryId = null, details = {}) {
+  if (!currentUser) return;
+  // หมายเหตุ: browser-created events เป็น activity เบื้องต้น
+  // ไม่ใช่หลักฐาน audit ที่เชื่อถือได้สำหรับการรักษาความปลอดภัย
+  const { error } = await db.from("nx_cache_events").insert({
+    owner_id: currentUser.id,
+    entry_id: entryId,
+    action,
+    details
+  });
+  if (error) console.warn("Activity logging failed:", error.message);
+}
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
+}
+function addText(parent, tag, text, className) {
+  const el = document.createElement(tag);
+  el.textContent = text;
+  if (className) el.className = className;
+  parent.appendChild(el);
+  return el;
+}
+function renderEntries() {
+  const root = $("entries");
+  root.replaceChildren();
+
+  const term = $("search").value.trim().toLowerCase();
+  const visible = entries.filter(item =>
+    item.name.toLowerCase().includes(term) ||
+    (item.sha256 || "").toLowerCase().includes(term)
+  );
+
+  $("count").textContent = String(entries.length);
+  $("totalSize").textContent = formatBytes(
+    entries.reduce((sum, item) => sum + Number(item.file_size || 0), 0)
+  );
+
+  if (!visible.length) {
+    addText(root, "p", entries.length ? "No matching entries." : "No cache files yet.", "muted");
+    return;
+  }
+
+  for (const item of visible) {
+    const row = document.createElement("article");
+    row.className = "entry";
+
+    const info = document.createElement("div");
+    addText(info, "div", item.name, "filename");
+    addText(info, "div",
+      `${formatBytes(item.file_size)} · ${item.mime_type || "Unknown type"}`,
+      "meta"
+    );
+    addText(info, "div",
+      `Added ${new Date(item.created_at).toLocaleString()}`,
+      "meta"
+    );
+    if (item.sha256) addText(info, "div", `SHA-256: ${item.sha256}`, "meta");
+
+    const actions = document.createElement("div");
+    actions.className = "entry-actions";
+
+    const download = document.createElement("button");
+    download.textContent = "Download";
+    download.addEventListener("click", () => downloadEntry(item, download));
+
+    const remove = document.createElement("button");
+    remove.textContent = "Delete";
+    remove.className = "danger";
+    remove.addEventListener("click", () => deleteEntry(item, remove));
+
+    actions.append(download, remove);
+    row.append(info, actions);
+    root.appendChild(row);
+  }
+}
+async function loadEntries() {
+  if (!currentUser) return;
+  clearStatus();
+
+  const { data, error } = await db
+    .from("nx_cache_entries")
+    .select("id,owner_id,name,storage_path,mime_type,file_size,sha256,created_at,last_accessed_at")
+    .order("created_at", { ascending: false })
+    .limit(500);
+
+  if (error) {
+    showStatus("โหลด Cache ไม่สำเร็จ: " + error.message, true);
+    return;
+  }
+  entries = data || [];
+  renderEntries();
+  await loadHistory();
+}
+async function loadHistory() {
+  if (!currentUser) return;
+
+  const { data, error } = await db
+    .from("nx_cache_events")
+    .select("id,action,details,created_at")
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  const root = $("history");
+  root.replaceChildren();
+
+  if (error) {
+    addText(root, "p", "โหลดประวัติไม่สำเร็จ: " + error.message, "muted");
+    return;
+  }
+  if (!data?.length) {
+    addText(root, "p", "No activity yet.", "muted");
+    return;
+  }
+  for (const event of data) {
+    const row = document.createElement("div");
+    row.className = "history-item";
+    const name = event.details?.name ? ` · ${event.details.name}` : "";
+    addText(row, "div", `${event.action}${name}`);
+    addText(row, "div", new Date(event.created_at).toLocaleString(), "meta");
+    root.appendChild(row);
+  }
+}
+async function uploadFile() {
+  if (!currentUser || busy) return;
+
+  const file = $("fileInput").files?.[0];
+  if (!file) return showStatus("เลือกไฟล์ก่อนอัปโหลด", true);
+  if (file.size > MAX_FILE_SIZE) {
+    return showStatus("ไฟล์ใหญ่เกิน 25 MB สำหรับเวอร์ชันนี้", true);
+  }
+  if (file.size === 0) {
+    return showStatus("ไฟล์ว่างยังไม่รองรับในเวอร์ชันนี้", true);
+  }
+
+  setBusy(true);
+  let path = null;
+  let objectUploaded = false;
+
+  try {
+    showStatus("กำลังคำนวณ SHA-256…");
+    const hash = await sha256(file);
+    const name = safeFilename(file.name);
+    path = `${currentUser.id}/cache/${makeId()}-${name}`;
+
+    showStatus("กำลังอัปโหลดไฟล์…");
+    const { error: uploadError } = await db.storage
+      .from(BUCKET)
+      .upload(path, file, {
+        contentType: file.type || "application/octet-stream",
+        upsert: false
+      });
+
+    if (uploadError) throw uploadError;
+    objectUploaded = true;
+
+    const { data: record, error: insertError } = await db
+      .from("nx_cache_entries")
+      .insert({
+        owner_id: currentUser.id,
+        name,
+        storage_path: path,
+        mime_type: file.type || "application/octet-stream",
+        file_size: file.size,
+        sha256: hash
+      })
+      .select("id")
+      .single();
+
+    if (insertError) throw insertError;
+
+    await logEvent("upload", record.id, { name, file_size: file.size });
+    $("fileInput").value = "";
+    showStatus("อัปโหลดสำเร็จ");
+    await loadEntries();
+  } catch (error) {
+    if (objectUploaded && path) {
+      const { error: cleanupError } = await db.storage
+        .from(BUCKET).remove([path]);
+      if (cleanupError) {
+        console.error("Orphaned storage object requires cleanup:", path);
+      }
+    }
+    showStatus("อัปโหลดไม่สำเร็จ: " + (error.message || "Unknown error"), true);
+  } finally {
+    setBusy(false);
+  }
+}
+async function downloadEntry(item, button) {
+  if (busy || !currentUser) return;
+  button.disabled = true;
+
+  try {
+    const { data, error } = await db.storage
+      .from(BUCKET)
+      .download(item.storage_path);
+    if (error) throw error;
+
+    downloadBlob(data, item.name);
+
+    const { error: updateError } = await db
+      .from("nx_cache_entries")
+      .update({ last_accessed_at: new Date().toISOString() })
+      .eq("id", item.id);
+
+    if (updateError) console.warn(updateError.message);
+
+    await logEvent("download", item.id, { name: item.name });
+    showStatus("เริ่มดาวน์โหลด: " + item.name);
+    await loadHistory();
+  } catch (error) {
+    showStatus("ดาวน์โหลดไม่สำเร็จ: " + error.message, true);
+  } finally {
+    button.disabled = false;
+  }
+}
+async function deleteEntry(item, button) {
+  if (!currentUser || busy) return;
+  if (!confirm(`ลบ Cache "${item.name}" ใช่หรือไม่?`)) return;
+
+  button.disabled = true;
+  try {
+    const { error: storageError } = await db.storage
+      .from(BUCKET)
+      .remove([item.storage_path]);
+
+    if (storageError) throw storageError;
+
+    const { error: deleteError } = await db
+      .from("nx_cache_entries")
+      .delete()
+      .eq("id", item.id);
+
+    if (deleteError) {
+      showStatus(
+        "ลบไฟล์ใน Storage แล้ว แต่ลบรายการไม่ได้: " +
+        deleteError.message,
+        true
+      );
+      await loadEntries();
+      return;
+    }
+
+    await logEvent("delete", null, { name: item.name });
+    showStatus("ลบ Cache สำเร็จ");
+    await loadEntries();
+  } catch (error) {
+    showStatus("ลบไม่สำเร็จ: " + error.message, true);
+  } finally {
+    button.disabled = false;
+  }
+}
+async function signIn(email, password) {
+  const { error } = await db.auth.signInWithPassword({ email, password });
+  if (error) throw error;
+}
+async function logout() {
+  const { error } = await db.auth.signOut();
+  if (error) showStatus("Logout ไม่สำเร็จ: " + error.message, true);
+}
+$("loginForm").addEventListener("submit", async event => {
+  event.preventDefault();
+  const button = event.submitter;
+  if (button) button.disabled = true;
+  try {
+    await signIn($("email").value.trim(), $("password").value);
+    $("password").value = "";
+  } catch (error) {
+    showStatus("เข้าสู่ระบบไม่สำเร็จ: " + error.message, true);
+  } finally {
+    if (button) button.disabled = false;
+  }
+});
+$("uploadBtn").addEventListener("click", uploadFile);
+$("refreshBtn").addEventListener("click", loadEntries);
+$("logoutBtn").addEventListener("click", logout);
+$("search").addEventListener("input", renderEntries);
+$("backBtn").addEventListener("click", () => {
+  window.location.href = "./";
+});
+
+db.auth.onAuthStateChange((_event, session) => {
+  currentUser = session?.user || null;
+  showApp(Boolean(currentUser));
+  if (currentUser) {
+    $("account").textContent = currentUser.email || currentUser.id;
+    setTimeout(() => loadEntries(), 0);
+  } else {
+    entries = [];
+    $("entries").replaceChildren();
+    $("history").replaceChildren();
+    $("count").textContent = "0";
+    $("totalSize").textContent = "0 B";
+  }
+});
+
+(async function init() {
+  if (SUPABASE_URL.includes("YOUR_") || SUPABASE_KEY.includes("YOUR_")) {
+    showStatus("ตั้งค่า SUPABASE_URL และ SUPABASE_KEY ก่อนใช้งาน", true);
+    $("loginPanel").classList.remove("hidden");
+    return;
+  }
+  const { data, error } = await db.auth.getSession();
+  if (error) {
+    showStatus("ตรวจ session ไม่สำเร็จ: " + error.message, true);
+    return;
+  }
+  currentUser = data.session?.user || null;
+  showApp(Boolean(currentUser));
+  if (currentUser) await loadEntries();
+})();
+</script>
+</body>
+</html>
