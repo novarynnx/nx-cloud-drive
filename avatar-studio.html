@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0b0d12">
+<title>NX Avatar Studio</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{color-scheme:dark;--bg:#0b0d12;--panel:#121722;--panel2:#171e2b;--line:#282f40;--text:#edf1fc;--muted:#929db4;--accent:#a78bfa;--cyan:#7dd3fc;--bad:#fb7185;--radius:15px}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px system-ui,-apple-system,"Segoe UI",sans-serif}button,input,select,textarea{font:inherit}button{border:1px solid var(--line);border-radius:10px;padding:9px 12px;background:#20283a;color:var(--text);cursor:pointer}button:hover{border-color:var(--accent)}button.primary{background:#7652d8;border-color:#8b6be5}button.danger{color:#fda4af}button:disabled{opacity:.45;cursor:not-allowed}input,select,textarea{width:100%;background:#0c111a;border:1px solid var(--line);border-radius:9px;padding:10px;color:var(--text);min-width:0}input:focus,select:focus,textarea:focus{outline:1px solid var(--accent);border-color:var(--accent)}a{color:var(--cyan)}header{height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 22px;border-bottom:1px solid var(--line);background:#0d1017;position:sticky;top:0;z-index:5}.brand{font-weight:850;letter-spacing:.7px}.brand span{color:var(--accent)}.muted{color:var(--muted);font-size:12px;line-height:1.65}.header-right,.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}main{max-width:1700px;margin:auto;padding:20px}h1{margin:0 0 5px;font-size:25px}h2{font-size:16px;margin:0}p{line-height:1.65}.notice{border:1px solid #51452a;background:#211b10;color:#efd7a6;border-radius:12px;padding:11px 13px;margin:0 0 15px;font-size:12px;line-height:1.6}.page-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:17px}.layout{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(300px,.85fr);gap:15px;align-items:start}.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:15px;margin-bottom:14px;min-width:0}.panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px}.viewport{position:relative;height:min(67vh,690px);min-height:390px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#0b0d12}.viewport canvas{display:block;width:100%;height:100%}.view-badge{position:absolute;top:10px;left:10px;background:#0d111bdc;border:1px solid var(--line);border-radius:8px;padding:7px 9px;font-size:11px;pointer-events:none}.view-help{position:absolute;bottom:10px;left:10px;right:10px;color:#9ca8bf;font-size:11px;text-shadow:0 1px 2px #000;pointer-events:none}.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.toolbar>*{flex:1}.toolbar button{flex:0 0 auto}.fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.field{min-width:0}.field label{display:block;font-size:11px;color:#b7c0d2;margin:0 0 5px}.field input,.field select{padding:9px}.field.full{grid-column:1/-1}.transform-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.section-label{margin:14px 0 8px;color:var(--muted);font-size:10px;letter-spacing:1.2px;text-transform:uppercase}.status{min-height:18px;color:var(--cyan);font-size:12px;overflow-wrap:anywhere;margin:8px 0}.status.error{color:var(--bad)}.items,.outfits{display:grid;gap:7px}.item-row,.outfit-row{display:flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:10px;padding:8px;background:#101621;min-width:0}.item-row.selected,.outfit-row.selected{border-color:#7660b5;background:#211b32}.item-main,.outfit-main{flex:1;min-width:0;text-align:left;background:transparent;border:0;padding:4px}.item-main strong,.outfit-main strong{display:block;overflow-wrap:anywhere;font-size:12px}.item-main span,.outfit-main span{display:block;color:var(--muted);font-size:10px;margin-top:3px}.small-actions{display:flex;gap:5px}.small-actions button{padding:6px 8px;font-size:11px}.empty{border:1px dashed var(--line);border-radius:10px;text-align:center;padding:22px 12px;color:var(--muted);font-size:12px}.pill{display:inline-block;font-size:10px;border:1px solid #3f365a;background:#211b32;color:#decfff;border-radius:99px;padding:3px 7px}.dialog{border:1px solid var(--line);border-radius:16px;background:var(--panel);color:var(--text);width:min(560px,calc(100% - 24px));padding:18px}.dialog::backdrop{background:#000a;backdrop-filter:blur(4px)}.dialog-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:13px}.bottom-actions{display:flex;gap:8px;flex-wrap:wrap}.bottom-actions button{flex:1}.filehint{font-size:11px;color:var(--muted);line-height:1.6}.rig-note{font-size:11px;color:var(--muted);margin-top:8px}footer{text-align:center;padding:18px;color:var(--muted);font-size:11px}
+@media(max-width:1050px){.layout{grid-template-columns:1fr}.viewport{height:55vh;min-height:360px}.editor-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.editor-columns>.panel{margin-bottom:0}}
+@media(max-width:620px){main{padding:11px}header{padding:0 12px}.brand{font-size:13px}header .muted{display:none}h1{font-size:22px}.viewport{height:52vh;min-height:320px}.editor-columns{grid-template-columns:1fr}.fields{grid-template-columns:repeat(2,minmax(0,1fr))}.field.full{grid-column:1/-1}.panel{padding:12px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">NX <span>AVATAR</span> STUDIO</div>
+  <div class="header-right"><span id="studioUser" class="muted">ตรวจสอบบัญชี...</span><a href="index.html">← กลับ NX Cloud Drive</a></div>
+</header>
+<main>
+  <div class="page-head"><div><h1>Avatar Studio</h1><div class="muted">จัดชุด • ทดลองวาง Custom Model • ปรับตำแหน่ง • บันทึกไว้ใน Cloud</div></div><span class="pill">PRIVATE WORKSPACE</span></div>
+  <div id="studioAuthNotice" class="notice" hidden>ยังไม่พบเซสชันผู้ใช้ กรุณาเข้าสู่ระบบที่ <a href="index.html">NX Cloud Drive</a> ก่อน แล้วกลับมาหน้านี้</div>
+  <div class="notice"><strong>ข้อจำกัดของ Preview:</strong> Asset ID จาก Roblox จะถูกเก็บเป็นข้อมูลไอเทม แต่เว็บไซต์ไม่สามารถนำ Asset ID มาเป็นโมเดล 3D ที่สวมบนตัวละครได้อัตโนมัติทุกกรณี โมเดลที่อัปโหลดเองจะทดลองแสดงผลได้เมื่อเป็นไฟล์ที่รองรับ การนำชุดไปใช้กับตัวละคร Roblox จริงต้องมีสคริปต์ฝั่ง Roblox เพิ่มเติม</div>
+  <div class="layout">
+    <section class="panel">
+      <div class="panel-head"><div><h2>3D Preview</h2><div class="muted">ลากเมาส์/นิ้วเพื่อหมุนกล้อง • ซูมด้วยล้อเมาส์/ pinch</div></div><button id="resetCamera">รีเซ็ตกล้อง</button></div>
+      <div id="studioViewport" class="viewport"><div class="view-badge">NX · 3D VIEWPORT</div><div class="view-help">Preview ใช้หุ่นอ้างอิง R6/R15 แบบง่าย เพื่อจัดตำแหน่งเบื้องต้น • กดที่ไอเทมในรายการเพื่อแก้ไข</div></div>
+      <div id="studioStatus" class="status" role="status"></div>
+      <div class="panel-head" style="margin-top:8px"><h2>ไอเทมในชุด</h2><span id="studioItemCount" class="muted">0 รายการ</span></div>
+      <div id="studioItems" class="items"><div class="empty">ยังไม่มีไอเทมในชุด</div></div>
+    </section>
+    <div class="editor-columns">
+      <section class="panel">
+        <div class="panel-head"><h2>ชุดของฉัน</h2><button id="newOutfit">＋ ชุดใหม่</button></div>
+        <div class="field"><label for="outfitName">ชื่อชุด</label><input id="outfitName" maxlength="100" value="ชุดใหม่"></div>
+        <div class="field" style="margin-top:9px"><label for="studioRig">Rig เป้าหมาย</label><select id="studioRig"><option value="R15">R15</option><option value="R6">R6</option></select></div>
+        <div id="dirtyStatus" class="muted" style="margin:9px 0">ยังไม่ได้บันทึก</div>
+        <div class="bottom-actions"><button id="saveOutfit" class="primary">บันทึกชุด</button><button id="exportOutfit">ส่งออก JSON</button></div>
+        <div class="toolbar"><button id="importButton">นำเข้า JSON</button><input id="importFile" type="file" accept="application/json,.json" hidden></div>
+        <div class="section-label">Saved outfits</div><div id="studioOutfits" class="outfits"><div class="empty">ยังไม่มีชุดที่บันทึก</div></div>
+      </section>
+      <section class="panel">
+        <div class="panel-head"><h2>เพิ่มไอเทม</h2></div>
+        <div class="toolbar"><button class="primary" id="addCatalog">＋ เพิ่ม Roblox Asset ID</button><button id="addFromVault">จาก Avatar Vault</button></div>
+        <button id="uploadModel" style="width:100%">＋ อัปโหลด Custom Model</button>
+        <div class="filehint" style="margin-top:8px">รูปแบบโมเดล: .glb, .gltf, .obj, .fbx, .stl (ไม่เกิน 50 MB) · .glb เหมาะกับไฟล์ที่รวมเนื้อหาไว้แล้ว</div>
+      </section>
+      <section class="panel">
+        <div class="panel-head"><h2>Transform Inspector</h2><button id="removeItem" class="danger">นำออก</button></div>
+        <div id="selectedName" class="muted" style="margin-bottom:10px">เลือกไอเทมเพื่อแก้ไข</div>
+        <div class="field"><label for="attachment">จุดยึดบนตัวละคร</label><select id="attachment">
+          <option>Head</option><option>UpperTorso</option><option>LowerTorso</option><option>LeftUpperArm</option><option>LeftLowerArm</option><option>LeftHand</option><option>RightUpperArm</option><option>RightLowerArm</option><option>RightHand</option><option>LeftUpperLeg</option><option>LeftLowerLeg</option><option>LeftFoot</option><option>RightUpperLeg</option><option>RightLowerLeg</option><option>RightFoot</option>
+        </select></div>
+        <div class="section-label">Position · studs</div><div class="transform-grid"><div class="field"><label for="posX">X</label><input id="posX" type="number" step="0.05" value="0"></div><div class="field"><label for="posY">Y</label><input id="posY" type="number" step="0.05" value="0"></div><div class="field"><label for="posZ">Z</label><input id="posZ" type="number" step="0.05" value="0"></div></div>
+        <div class="section-label">Rotation · degrees</div><div class="transform-grid"><div class="field"><label for="rotX">X</label><input id="rotX" type="number" step="5" value="0"></div><div class="field"><label for="rotY">Y</label><input id="rotY" type="number" step="5" value="0"></div><div class="field"><label for="rotZ">Z</label><input id="rotZ" type="number" step="5" value="0"></div></div>
+        <div class="section-label">Scale</div><div class="field"><input id="scale" type="number" min="0.05" max="10" step="0.05" value="1"></div>
+        <div class="toolbar"><button id="resetTransform">รีเซ็ตตำแหน่งชิ้นนี้</button></div>
+        <div class="rig-note">ค่าตำแหน่งถูกบันทึกต่อชิ้นในชุด และสามารถกลับมาแก้ไขภายหลังได้</div>
+      </section>
+    </div>
+  </div>
+  <footer>NX AVATAR STUDIO · ใช้ร่วมกับ NX Cloud Drive</footer>
+</main>
+
+<dialog id="catalogDialog" class="dialog"><form id="catalogForm"><div class="panel-head"><h2>เพิ่ม Roblox Asset ID</h2><button type="button" data-close="catalogDialog">ปิด</button></div><div class="fields"><div class="field full"><label for="catalogName">ชื่อไอเทม *</label><input id="catalogName" required maxlength="160" placeholder="เช่น Black Hair"></div><div class="field"><label for="catalogId">Asset ID</label><input id="catalogId" maxlength="120" placeholder="1234567890"></div><div class="field"><label for="catalogCategory">หมวดหมู่</label><select id="catalogCategory"><option>Accessory</option><option>Hair</option><option>Face</option><option>Shirt</option><option>Pants</option><option>Body Part</option><option>Layered Clothing</option><option>Animation</option><option>Bundle</option><option>Texture</option><option>Model</option><option>Other</option></select></div><div class="field full"><label for="catalogUrl">Catalog URL (ไม่บังคับ)</label><input id="catalogUrl" type="url" maxlength="1000" placeholder="https://www.roblox.com/catalog/..."></div></div><div class="dialog-actions"><button type="button" data-close="catalogDialog">ยกเลิก</button><button type="submit" class="primary">เพิ่มเข้าชุด</button></div></form></dialog>
+<dialog id="vaultDialog" class="dialog"><div class="panel-head"><h2>เลือกจาก Avatar Vault</h2><button type="button" data-close="vaultDialog">ปิด</button></div><div class="field"><label for="vaultSelect">Asset ที่บันทึกไว้</label><select id="vaultSelect"></select></div><div class="dialog-actions"><button type="button" data-close="vaultDialog">ยกเลิก</button><button id="attachVault" class="primary">เพิ่มเข้าชุด</button></div></dialog>
+<dialog id="modelDialog" class="dialog"><form id="modelForm"><div class="panel-head"><h2>เพิ่ม Custom Model</h2><button type="button" data-close="modelDialog">ปิด</button></div><div class="field"><label for="modelName">ชื่อโมเดล *</label><input id="modelName" required maxlength="160" placeholder="เช่น NX Shoulder Drone"></div><div class="field" style="margin-top:10px"><label for="modelFile">ไฟล์โมเดล *</label><input id="modelFile" type="file" required accept=".glb,.gltf,.obj,.fbx,.stl"></div><p class="filehint">ไฟล์จะอัปโหลดไปยัง nx-assets และบันทึก metadata ใน nx_avatar_assets เพื่อให้ใช้งานซ้ำจาก Avatar Vault ได้</p><div class="dialog-actions"><button type="button" data-close="modelDialog">ยกเลิก</button><button type="submit" id="modelSubmit" class="primary">อัปโหลดและเพิ่ม</button></div></form></dialog>
+<script type="module" src="avatar-studio.js"></script>
+</body>
+</html>
