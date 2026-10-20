@@ -4,306 +4,975 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0b0d12">
 <title>NX Cloud Drive</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-:root{color-scheme:dark;--bg:#0b0d12;--panel:#131722;--line:#282e3d;--text:#edf0fa;--muted:#969fb4;--accent:#a78bfa}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px system-ui,sans-serif}
-button,input{font:inherit}button{background:#252b3b;color:white;border:1px solid var(--line);padding:10px 13px;border-radius:10px;cursor:pointer}
-button.primary{background:#8b5cf6;border-color:#8b5cf6}button.danger{color:#ff9eaa}
-input{background:#0c1019;color:white;border:1px solid var(--line);padding:12px;border-radius:10px;width:100%;min-width:0}
-header{padding:18px 22px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px}
-.brand{font-size:19px;font-weight:800;letter-spacing:.5px}.brand span{color:var(--accent)}
-main{max-width:1100px;margin:auto;padding:22px}
-.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:16px}
-.auth{max-width:420px;margin:9vh auto}.muted{color:var(--muted);font-size:13px}
-.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.row>*{max-width:100%}.spacer{flex:1}.toolbar{margin:18px 0}
-#items{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}
-.item{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px;min-width:0}
-.item .name{font-weight:650;overflow-wrap:anywhere;margin:10px 0}
-.item .actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
-.item button{font-size:12px;padding:7px 9px}
-.icon{font-size:26px;color:var(--accent)}h1{font-size:25px;margin:0 0 5px}
-#status{margin:12px 0;color:#c4b5fd;overflow-wrap:anywhere}
-#auth,#drive{display:none}
-@media(max-width:600px){main{padding:14px}header{padding:14px}.panel{padding:14px}#items{grid-template-columns:repeat(2,minmax(0,1fr))}.item{padding:11px}}
+:root{
+  color-scheme:dark;
+  --bg:#0b0d12;--panel:#121722;--panel2:#171e2b;
+  --line:#282f40;--text:#edf1fc;--muted:#929db4;
+  --accent:#a78bfa;--cyan:#7dd3fc;--danger:#fb7185;
+  --radius:15px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);
+  font:14px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+button,input,select,textarea{font:inherit}
+button{background:#20283a;color:var(--text);border:1px solid var(--line);
+  padding:10px 13px;border-radius:10px;cursor:pointer;transition:.15s}
+button:hover{border-color:var(--accent);background:#282e42}
+button:disabled{opacity:.5;cursor:wait}
+button.primary{background:#7652d8;border-color:#8b6be5}
+button.primary:hover{background:#8967eb}
+button.danger{color:#fda4af}
+input,select,textarea{width:100%;min-width:0;background:#0c111a;
+  border:1px solid var(--line);color:var(--text);padding:11px;
+  border-radius:10px;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+textarea{resize:vertical;min-height:80px}
+a{color:var(--cyan)}
+button:focus-visible,a:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+header{height:65px;position:sticky;top:0;z-index:10;background:#0d1017ed;
+  border-bottom:1px solid var(--line);display:flex;align-items:center;
+  justify-content:space-between;padding:0 22px;backdrop-filter:blur(14px)}
+.brand{font-weight:850;font-size:17px;letter-spacing:.7px}
+.brand span{color:var(--accent)}
+.header-right,.row{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.muted{color:var(--muted);font-size:12px;line-height:1.6}
+main{max-width:1500px;margin:auto;padding:23px}
+h1{font-size:25px;margin:0 0 5px;letter-spacing:-.5px}
+h2{font-size:16px;margin:0}
+p{line-height:1.65}
+#auth,#app{display:none}
+.auth{max-width:430px;margin:9vh auto;background:var(--panel);
+  border:1px solid var(--line);border-radius:18px;padding:25px}
+.auth input{margin:5px 0}
+.auth .row button{flex:1}
+#authMsg{overflow-wrap:anywhere}
+.shell{display:grid;grid-template-columns:225px minmax(0,1fr);gap:22px;align-items:start}
+.sidebar{position:sticky;top:84px;border:1px solid var(--line);
+  border-radius:16px;background:var(--panel);padding:12px}
+.side-label{padding:13px 10px 7px;color:var(--muted);font-size:10px;
+  letter-spacing:1.3px;text-transform:uppercase}
+.nav{width:100%;display:flex;align-items:center;gap:11px;text-align:left;
+  border:1px solid transparent;background:transparent;padding:11px;
+  margin:2px 0;color:#b7c0d2}
+.nav .nav-icon{width:22px;text-align:center;font-size:17px}
+.nav.active{background:#29243d;border-color:#463866;color:#e9ddff}
+.nav.active .nav-icon{color:var(--accent)}
+.nav:hover{background:#202638}
+.sidebar-foot{margin-top:18px;border-top:1px solid var(--line);
+  padding:13px 9px 4px;overflow-wrap:anywhere}
+.content{min-width:0}
+.page{display:none}
+.page.active{display:block}
+.page-head{display:flex;align-items:flex-start;justify-content:space-between;
+  gap:12px;flex-wrap:wrap;margin-bottom:20px}
+.page-head h1{margin-bottom:5px}
+.panel{background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--radius);padding:18px;margin-bottom:15px;min-width:0}
+.panel-head{display:flex;justify-content:space-between;align-items:center;
+  gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.stat{background:linear-gradient(145deg,#171e2d,#10141d);
+  border:1px solid var(--line);border-radius:14px;padding:17px;min-width:0}
+.stat-icon{font-size:21px;margin-bottom:14px}
+.stat-number{font-size:26px;font-weight:800;overflow-wrap:anywhere}
+.stat-label{color:var(--muted);font-size:12px;margin-top:3px}
+.stat-note{color:var(--cyan);font-size:11px;margin-top:9px}
+.toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:15px 0}
+.toolbar input{flex:1;min-width:160px}
+.toolbar select{width:auto;max-width:100%}
+#driveItems,#assetItems{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}
+.item{background:#141a26;border:1px solid var(--line);border-radius:13px;
+  padding:14px;min-width:0}
+.item:hover{border-color:#4a4565}
+.item-icon{height:78px;border-radius:10px;background:#0d121b;
+  display:flex;align-items:center;justify-content:center;font-size:32px;
+  overflow:hidden;color:var(--accent)}
+.item-icon img{width:100%;height:100%;object-fit:contain}
+.item-name{font-weight:700;overflow-wrap:anywhere;margin:11px 0 5px}
+.item-meta{color:var(--muted);font-size:11px;overflow-wrap:anywhere;line-height:1.6}
+.actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+.actions button{font-size:11px;padding:7px 9px}
+#driveStatus,#assetStatus,#globalStatus{overflow-wrap:anywhere}
+.status{color:var(--cyan);font-size:12px;min-height:18px;margin:10px 0}
+.empty{grid-column:1/-1;text-align:center;border:1px dashed var(--line);
+  padding:34px 15px;border-radius:13px;color:var(--muted)}
+.empty strong{display:block;color:var(--text);margin-bottom:5px}
+.tag{display:inline-block;border:1px solid #41365c;background:#211c32;
+  color:#d8c7ff;border-radius:99px;padding:3px 8px;font-size:10px;margin:3px 3px 0 0}
+.badge{font-size:10px;color:var(--cyan);border:1px solid #264453;
+  background:#11222b;border-radius:6px;padding:3px 7px}
+.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.field{min-width:0}
+.field label{display:block;color:#b9c2d4;font-size:12px;margin:0 0 6px}
+.field.full{grid-column:1/-1}
+#cacheFrame{width:100%;height:calc(100vh - 175px);min-height:550px;
+  background:var(--bg);border:1px solid var(--line);border-radius:14px}
+.settings-line{display:flex;justify-content:space-between;align-items:center;
+  gap:15px;padding:14px 0;border-bottom:1px solid var(--line)}
+.settings-line:last-child{border-bottom:0}
+.settings-value{overflow-wrap:anywhere;text-align:right}
+.mobile-nav{display:none}
+footer{padding:18px 0;color:var(--muted);font-size:11px;text-align:center}
+@media(max-width:850px){
+  main{padding:15px}
+  .shell{grid-template-columns:1fr;gap:13px}
+  .sidebar{position:sticky;top:65px;z-index:8;display:flex;gap:5px;
+    overflow-x:auto;padding:7px;border-radius:12px}
+  .side-label,.sidebar-foot{display:none}
+  .nav{width:auto;flex:0 0 auto;white-space:nowrap;margin:0;padding:9px 11px}
+  .nav .nav-icon{width:auto}
+  .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  header{padding:0 14px}
+  #cacheFrame{height:calc(100vh - 205px);min-height:450px}
+}
+@media(max-width:480px){
+  main{padding:11px}
+  .panel{padding:13px}
+  .stats{gap:8px}
+  .stat{padding:12px}
+  .stat-number{font-size:22px}
+  #driveItems,#assetItems{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .item{padding:9px}
+  .item-icon{height:65px}
+  .item-name{font-size:12px}
+  .actions button{padding:7px;font-size:10px}
+  .form-grid{grid-template-columns:1fr}
+  .field.full{grid-column:auto}
+  .brand{font-size:14px}
+  header button{padding:8px;font-size:12px}
+}
 </style>
 </head>
 <body>
 <header>
-  <div class="brand">NX <span>CLOUD DRIVE</span></div>
-  <button id="logout" hidden>ออกจากระบบ</button>
+  <div class="brand">NX <span>CLOUD</span> DRIVE</div>
+  <div class="header-right">
+    <span id="headerUser" class="muted"></span>
+    <button id="logout" hidden>ออกจากระบบ</button>
+  </div>
 </header>
 
 <main>
-<section id="auth" class="panel auth">
-  <h1>ยินดีต้อนรับ</h1>
-  <p class="muted">พื้นที่เก็บไฟล์ส่วนตัวของคุณ</p>
+<section id="auth" class="auth">
+  <div class="brand">NX <span>WORKSPACE</span></div>
+  <h1 style="margin-top:18px">ยินดีต้อนรับ</h1>
+  <p class="muted">พื้นที่จัดเก็บไฟล์และคลัง Avatar ส่วนตัวของคุณ</p>
   <form id="authForm">
-    <p><input id="email" type="email" placeholder="อีเมล" autocomplete="email" required></p>
-    <p><input id="password" type="password" placeholder="รหัสผ่าน" autocomplete="current-password" required minlength="6"></p>
-    <div class="row">
+    <input id="email" type="email" placeholder="อีเมล"
+      autocomplete="email" required>
+    <input id="password" type="password" placeholder="รหัสผ่าน"
+      autocomplete="current-password" minlength="6" required>
+    <div class="row" style="margin-top:10px">
       <button class="primary" type="submit" data-mode="login">เข้าสู่ระบบ</button>
       <button type="submit" data-mode="signup">สมัครสมาชิก</button>
     </div>
   </form>
-  <p id="authMsg" class="muted"></p>
+  <p id="authMsg" class="muted" role="status"></p>
 </section>
 
-<section id="drive">
-  <div class="panel">
-    <h1>ไฟล์ของฉัน</h1>
-    <p class="muted">Private Cloud Storage · ไฟล์ของคุณเท่านั้น</p>
-    <div class="row toolbar">
-      <button class="primary" id="uploadBtn">＋ อัปโหลดไฟล์</button>
-      <input id="fileInput" type="file" multiple hidden>
-      <button id="newFolder">＋ สร้างโฟลเดอร์</button>
-      <button id="refresh">↻ รีเฟรช</button>
+<section id="app">
+<div class="shell">
+  <aside class="sidebar" aria-label="เมนูหลัก">
+    <div class="side-label">Workspace</div>
+    <button class="nav active" data-page="overview"><span class="nav-icon">◈</span>Overview</button>
+    <button class="nav" data-page="drive"><span class="nav-icon">▣</span>Cloud Drive</button>
+    <button class="nav" data-page="assets"><span class="nav-icon">◇</span>Avatar Assets</button>
+    <button class="nav" data-page="cache"><span class="nav-icon">▤</span>Cache Manager</button>
+    <div class="side-label">Preferences</div>
+    <button class="nav" data-page="settings"><span class="nav-icon">⚙</span>Settings</button>
+    <div class="sidebar-foot">
+      <div class="muted">NX PRIVATE WORKSPACE</div>
+      <div class="muted">Personal asset management</div>
     </div>
-    <input id="search" placeholder="ค้นหาไฟล์หรือโฟลเดอร์...">
-    <p id="crumb" class="muted">ตำแหน่ง: ไฟล์ของฉัน</p>
-    <p id="status" role="status"></p>
+  </aside>
+
+  <div class="content">
+    <div id="globalStatus" class="status" role="status"></div>
+
+    <section class="page active" id="page-overview">
+      <div class="page-head">
+        <div><h1>Overview</h1><div class="muted">ภาพรวมพื้นที่จัดเก็บของคุณ</div></div>
+        <button id="overviewRefresh">↻ รีเฟรชข้อมูล</button>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="stat-icon">▣</div>
+          <div id="statFiles" class="stat-number">—</div>
+          <div class="stat-label">Drive items</div><div class="stat-note">ไฟล์และโฟลเดอร์</div></div>
+        <div class="stat"><div class="stat-icon">◇</div>
+          <div id="statAssets" class="stat-number">—</div>
+          <div class="stat-label">Avatar assets</div><div class="stat-note">รายการในคลัง Avatar</div></div>
+        <div class="stat"><div class="stat-icon">▤</div>
+          <div id="statCache" class="stat-number">—</div>
+          <div class="stat-label">Cached files</div><div class="stat-note">รายการ Cache ที่บันทึกไว้</div></div>
+        <div class="stat"><div class="stat-icon">◉</div>
+          <div class="stat-number" style="font-size:18px">PRIVATE</div>
+          <div class="stat-label">Workspace</div><div class="stat-note">ข้อมูลแยกตามบัญชี</div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h2>Quick actions</h2></div>
+        <div class="row">
+          <button class="primary" data-goto="drive">＋ เปิด Cloud Drive</button>
+          <button data-goto="assets">＋ เพิ่ม Avatar Asset</button>
+          <button data-goto="cache">เปิด Cache Manager</button>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h2>Avatar Vault</h2><button data-goto="assets">ดูคลังทั้งหมด →</button></div>
+        <div id="recentAssets" class="muted">กำลังโหลด...</div>
+      </div>
+    </section>
+
+    <section class="page" id="page-drive">
+      <div class="page-head">
+        <div><h1>Cloud Drive</h1><div class="muted">ไฟล์ส่วนตัวและโฟลเดอร์ของคุณ</div></div>
+      </div>
+      <div class="panel">
+        <div class="row">
+          <button class="primary" id="uploadBtn">＋ อัปโหลดไฟล์</button>
+          <input id="fileInput" type="file" multiple hidden>
+          <button id="newFolder">＋ สร้างโฟลเดอร์</button>
+          <button id="upFolder">↑ โฟลเดอร์ก่อนหน้า</button>
+          <button id="driveRefresh">↻ รีเฟรช</button>
+        </div>
+        <div class="toolbar">
+          <input id="driveSearch" placeholder="ค้นหาไฟล์หรือโฟลเดอร์...">
+        </div>
+        <div id="crumb" class="muted">ตำแหน่ง: ไฟล์ของฉัน</div>
+        <div id="driveStatus" class="status" role="status"></div>
+      </div>
+      <div id="driveItems"></div>
+    </section>
+
+    <section class="page" id="page-assets">
+      <div class="page-head">
+        <div><h1>Avatar Asset Vault</h1>
+          <div class="muted">จัดเก็บ Asset ID, หมวดหมู่, แท็ก และไฟล์อ้างอิงของคุณ</div>
+        </div>
+        <button class="primary" id="addAsset">＋ เพิ่ม Asset</button>
+      </div>
+      <div class="panel">
+        <div class="toolbar" style="margin-top:0">
+          <input id="assetSearch" placeholder="ค้นหาชื่อ, Asset ID, แท็ก...">
+          <select id="assetCategory" aria-label="กรองหมวดหมู่">
+            <option value="">ทุกหมวดหมู่</option>
+            <option>Accessory</option><option>Hair</option><option>Face</option>
+            <option>Shirt</option><option>Pants</option><option>Body Part</option>
+            <option>Layered Clothing</option><option>Animation</option>
+            <option>Bundle</option><option>Texture</option><option>Model</option><option>Other</option>
+          </select>
+          <button id="assetRefresh">↻</button>
+        </div>
+        <div id="assetStatus" class="status" role="status"></div>
+        <div class="muted">หมายเหตุ: Asset ID เป็นข้อมูลอ้างอิง ไม่ใช่ไฟล์โมเดลที่ดาวน์โหลดมาแล้ว</div>
+      </div>
+      <div id="assetItems"></div>
+      <div class="panel" id="assetEditor" hidden>
+        <div class="panel-head"><h2 id="editorTitle">เพิ่ม Asset</h2>
+          <button id="cancelAsset">ปิด</button></div>
+        <form id="assetForm">
+          <input id="assetRecordId" type="hidden">
+          <div class="form-grid">
+            <div class="field">
+              <label for="assetName">ชื่อ *</label>
+              <input id="assetName" maxlength="160" required placeholder="เช่น Black Hair">
+            </div>
+            <div class="field">
+              <label for="assetId">Asset ID</label>
+              <input id="assetId" maxlength="120" placeholder="เช่น 1234567890">
+            </div>
+            <div class="field">
+              <label for="assetCat">หมวดหมู่</label>
+              <select id="assetCat">
+                <option>Accessory</option><option>Hair</option><option>Face</option>
+                <option>Shirt</option><option>Pants</option><option>Body Part</option>
+                <option>Layered Clothing</option><option>Animation</option>
+                <option>Bundle</option><option>Texture</option><option>Model</option><option>Other</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="assetUrl">ลิงก์อ้างอิง (ไม่บังคับ)</label>
+              <input id="assetUrl" type="url" maxlength="1000" placeholder="https://...">
+            </div>
+            <div class="field full">
+              <label for="assetDescription">คำอธิบาย</label>
+              <textarea id="assetDescription" maxlength="4000" placeholder="รายละเอียดของ Asset"></textarea>
+            </div>
+            <div class="field full">
+              <label for="assetTags">แท็ก (คั่นด้วยเครื่องหมายจุลภาค)</label>
+              <input id="assetTags" maxlength="1000" placeholder="black, sci-fi, outfit">
+            </div>
+            <div class="field full">
+              <label for="assetFile">แนบไฟล์ที่คุณมีสิทธิ์ใช้งาน (ไม่บังคับ)</label>
+              <input id="assetFile" type="file">
+              <div id="existingFile" class="muted"></div>
+              <div class="muted">ไฟล์จะถูกเก็บใน Bucket nx-assets โดยใช้ path ของบัญชีคุณ</div>
+            </div>
+          </div>
+          <div class="row" style="margin-top:15px">
+            <button class="primary" type="submit" id="saveAsset">บันทึก Asset</button>
+            <button type="button" id="cancelAsset2">ยกเลิก</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section class="page" id="page-cache">
+      <div class="page-head">
+        <div><h1>Cache Manager</h1>
+          <div class="muted">เปิดระบบ Cache เดิมของ NX Cloud Drive</div>
+        </div>
+        <a href="cache.html" target="_blank" rel="noopener">เปิดหน้าแยก ↗</a>
+      </div>
+      <div class="panel">
+        <p class="muted">หน้านี้ฝัง cache.html เดิมไว้ เพื่อรักษาฟังก์ชัน Cache ที่คุณมีอยู่แล้ว การทำงานของหน้านี้ยังใช้ระบบเดิม</p>
+        <iframe id="cacheFrame" title="NX Cache Manager" src="cache.html" loading="lazy"></iframe>
+      </div>
+    </section>
+
+    <section class="page" id="page-settings">
+      <div class="page-head"><div><h1>Settings</h1>
+        <div class="muted">ข้อมูลบัญชีและสถานะการเชื่อมต่อ</div></div></div>
+      <div class="panel">
+        <div class="panel-head"><h2>บัญชีผู้ใช้</h2></div>
+        <div class="settings-line"><span class="muted">อีเมล</span><span class="settings-value" id="settingEmail">—</span></div>
+        <div class="settings-line"><span class="muted">User ID</span><span class="settings-value" id="settingUid">—</span></div>
+        <div class="settings-line"><span class="muted">สถานะ</span><span class="badge">AUTHENTICATED</span></div>
+        <div class="row" style="margin-top:16px"><button id="settingsRefresh">↻ รีเฟรชข้อมูล</button><button class="danger" id="settingsLogout">ออกจากระบบ</button></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h2>Storage</h2></div>
+        <p class="muted">ไฟล์ถูกจัดเก็บใน Supabase Storage Bucket ที่ตั้งค่าไว้ ตารางและ Bucket ต้องมีนโยบาย RLS/Storage Policies ที่อนุญาตเฉพาะเจ้าของไฟล์</p>
+      </div>
+    </section>
+
+    <footer>NX CLOUD DRIVE · PRIVATE WORKSPACE</footer>
   </div>
-  <div id="items"></div>
+</div>
 </section>
 </main>
 
 <script>
-const SUPABASE_URL = "https://jlpjvrribbjtdhdenpsh.supabase.co";
-const SUPABASE_KEY = "sb_publishable_BiKDAGYZQVNJWC0yD9ldsA_99wcLTIw";
+"use strict";
+
+/* ใส่ค่าเดิมของโปรเจกต์คุณ ห้ามใช้ Secret Key ฝั่ง Browser */
+const SUPABASE_URL = "YOUR_EXISTING_SUPABASE_URL";
+const SUPABASE_KEY = "YOUR_EXISTING_SUPABASE_PUBLISHABLE_KEY";
 const BUCKET = "nx-assets";
+
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const $ = id => document.getElementById(id);
+const esc = value => String(value ?? "").replace(/[&<>"']/g, ch => ({
+  "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+}[ch]));
+
+const sizeText = n => {
+  n = Number(n) || 0;
+  if (n < 1024) return n + " B";
+  if (n < 1048576) return (n / 1024).toFixed(1) + " KB";
+  if (n < 1073741824) return (n / 1048576).toFixed(1) + " MB";
+  return (n / 1073741824).toFixed(2) + " GB";
+};
 
 let user = null;
 let currentFolder = null;
 let folders = [];
 let entries = [];
+let assets = [];
+let busy = false;
+let activePage = "overview";
+let authSubscription = null;
 
-const $ = id => document.getElementById(id);
-const say = msg => $("status").textContent = msg;
-const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({
-  "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
-}[c]));
-const sizeText = n => {
-  if (n < 1024) return n + " B";
-  if (n < 1048576) return (n/1024).toFixed(1) + " KB";
-  if (n < 1073741824) return (n/1048576).toFixed(1) + " MB";
-  return (n/1073741824).toFixed(2) + " GB";
-};
-
+function status(id, message) {
+  $(id).textContent = message || "";
+}
+function globalStatus(message) {
+  status("globalStatus", message);
+}
+function safeFileName(name) {
+  return String(name || "file").replace(/[\\/]/g, "_").replace(/[\u0000-\u001f]/g, "_");
+}
 function showAuth() {
   $("auth").style.display = "block";
-  $("drive").style.display = "none";
+  $("app").style.display = "none";
   $("logout").hidden = true;
+  $("headerUser").textContent = "";
 }
-function showDrive() {
+function showApp() {
   $("auth").style.display = "none";
-  $("drive").style.display = "block";
+  $("app").style.display = "block";
   $("logout").hidden = false;
+  $("headerUser").textContent = user?.email || "บัญชีของฉัน";
+  $("settingEmail").textContent = user?.email || "—";
+  $("settingUid").textContent = user?.id || "—";
 }
+function navigate(page) {
+  const allowed = ["overview","drive","assets","cache","settings"];
+  if (!allowed.includes(page)) return;
+  activePage = page;
+  document.querySelectorAll(".page").forEach(el => {
+    el.classList.toggle("active", el.id === "page-" + page);
+  });
+  document.querySelectorAll(".nav[data-page]").forEach(el => {
+    const active = el.dataset.page === page;
+    el.classList.toggle("active", active);
+    el.setAttribute("aria-current", active ? "page" : "false");
+  });
+  if (page === "drive") loadItems();
+  if (page === "assets") loadAssets();
+  if (page === "overview") loadOverview();
+}
+document.querySelectorAll(".nav[data-page]").forEach(button => {
+  button.addEventListener("click", () => navigate(button.dataset.page));
+});
+document.querySelectorAll("[data-goto]").forEach(button => {
+  button.addEventListener("click", () => navigate(button.dataset.goto));
+});
 
-async function runAuth(mode) {
+/* Authentication: uses the existing Supabase account system. */
+$("authForm").addEventListener("submit", async event => {
+  event.preventDefault();
+  const mode = event.submitter?.dataset.mode || "login";
   $("authMsg").textContent = "กำลังดำเนินการ...";
   const email = $("email").value.trim();
   const password = $("password").value;
-  const result = mode === "signup"
-    ? await db.auth.signUp({email,password})
-    : await db.auth.signInWithPassword({email,password});
-
-  if (result.error) {
-    $("authMsg").textContent = result.error.message;
-    return;
+  try {
+    const result = mode === "signup"
+      ? await db.auth.signUp({email,password})
+      : await db.auth.signInWithPassword({email,password});
+    if (result.error) {
+      $("authMsg").textContent = result.error.message;
+      return;
+    }
+    if (mode === "signup" && !result.data.session) {
+      $("authMsg").textContent =
+        "สมัครแล้ว โปรดตรวจอีเมลเพื่อยืนยันบัญชี แล้วกลับมาเข้าสู่ระบบ";
+      return;
+    }
+    $("authMsg").textContent = "สำเร็จ กำลังเปิด Workspace...";
+  } catch (error) {
+    $("authMsg").textContent = error.message || "เกิดข้อผิดพลาด";
   }
-  if (mode === "signup" && !result.data.session) {
-    $("authMsg").textContent =
-      "สมัครแล้ว โปรดตรวจอีเมลเพื่อยืนยันบัญชี แล้วกลับมาเข้าสู่ระบบ";
-    return;
-  }
-  $("authMsg").textContent = "";
-}
-
-$("authForm").addEventListener("submit", async e => {
-  e.preventDefault();
-  const mode = e.submitter?.dataset.mode || "login";
-  await runAuth(mode);
 });
 
-$("logout").onclick = async () => {
-  await db.auth.signOut();
-  user = null;
-  showAuth();
-};
+async function logout() {
+  const {error} = await db.auth.signOut();
+  if (error) globalStatus("ออกจากระบบไม่สำเร็จ: " + error.message);
+}
+$("logout").addEventListener("click", logout);
+$("settingsLogout").addEventListener("click", logout);
 
+let startSequence = 0;
+async function start(session) {
+  const sequence = ++startSequence;
+  user = session?.user || null;
+  if (!user) {
+    currentFolder = null;
+    folders = [];
+    entries = [];
+    assets = [];
+    showAuth();
+    return;
+  }
+  showApp();
+  navigate("overview");
+  await loadOverview();
+  if (sequence !== startSequence) return;
+}
+
+authSubscription = db.auth.onAuthStateChange((_event, session) => {
+  /* Avoid awaiting Supabase calls inside the auth event callback. */
+  setTimeout(() => start(session), 0);
+});
+db.auth.getSession().then(({data,error}) => {
+  if (error) {
+    $("authMsg").textContent = error.message;
+    showAuth();
+    return;
+  }
+  start(data.session);
+}).catch(error => {
+  $("authMsg").textContent = error.message || "เชื่อมต่อไม่สำเร็จ";
+  showAuth();
+});
+
+/* Cloud Drive: original table and bucket are retained. */
+async function loadFolders() {
+  if (!user) return;
+  const {data,error} = await db.from("nx_drive_items")
+    .select("id,name,parent_id")
+    .eq("item_type","folder")
+    .order("name");
+  if (error) {
+    status("driveStatus", "โหลดโฟลเดอร์ไม่สำเร็จ: " + error.message);
+    return;
+  }
+  folders = data || [];
+}
+function updateCrumb() {
+  if (!currentFolder) {
+    $("crumb").textContent = "ตำแหน่ง: ไฟล์ของฉัน";
+    $("upFolder").disabled = true;
+    return;
+  }
+  const names = [];
+  let id = currentFolder;
+  const seen = new Set();
+  while (id && !seen.has(id)) {
+    seen.add(id);
+    const folder = folders.find(item => item.id === id);
+    if (!folder) break;
+    names.unshift(folder.name);
+    id = folder.parent_id;
+  }
+  $("crumb").textContent = "ตำแหน่ง: ไฟล์ของฉัน / " + names.join(" / ");
+  $("upFolder").disabled = false;
+}
 async function loadItems() {
   if (!user) return;
-  say("กำลังโหลดรายการ...");
-  let q = db.from("nx_drive_items").select("*").order("name");
-  q = currentFolder
-    ? q.eq("parent_id", currentFolder)
-    : q.is("parent_id", null);
-
-  const {data,error} = await q;
+  status("driveStatus", "กำลังโหลดรายการ...");
+  let query = db.from("nx_drive_items").select("*").order("name");
+  query = currentFolder
+    ? query.eq("parent_id", currentFolder)
+    : query.is("parent_id", null);
+  const {data,error} = await query;
   if (error) {
-    say("โหลดรายการไม่สำเร็จ: " + error.message);
+    status("driveStatus", "โหลดรายการไม่สำเร็จ: " + error.message);
     return;
   }
   entries = data || [];
   renderItems();
   updateCrumb();
-  say(entries.length ? `มี ${entries.length} รายการ` : "โฟลเดอร์นี้ยังว่างอยู่");
+  status("driveStatus", entries.length ? `มี ${entries.length} รายการ` : "โฟลเดอร์นี้ยังว่างอยู่");
 }
-
-function updateCrumb() {
-  if (!currentFolder) {
-    $("crumb").textContent = "ตำแหน่ง: ไฟล์ของฉัน";
+function renderItems() {
+  const term = $("driveSearch").value.trim().toLowerCase();
+  const filtered = entries.filter(item => String(item.name || "").toLowerCase().includes(term));
+  if (!filtered.length) {
+    $("driveItems").innerHTML = '<div class="empty"><strong>ไม่พบรายการ</strong>อัปโหลดไฟล์หรือสร้างโฟลเดอร์ใหม่ได้เลย</div>';
     return;
   }
-  const names = [];
-  let id = currentFolder;
-  while (id) {
-    const f = folders.find(x => x.id === id);
-    if (!f) break;
-    names.unshift(f.name);
-    id = f.parent_id;
-  }
-  $("crumb").textContent = "ตำแหน่ง: ไฟล์ของฉัน / " + names.join(" / ");
-}
-
-function renderItems() {
-  const term = $("search").value.trim().toLowerCase();
-  const filtered = entries.filter(x => x.name.toLowerCase().includes(term));
-  $("items").innerHTML = filtered.map(x => `
+  $("driveItems").innerHTML = filtered.map(item => `
     <article class="item">
-      <div class="icon">${x.item_type === "folder" ? "📁" : "▤"}</div>
-      <div class="name">${esc(x.name)}</div>
-      <div class="muted">${x.item_type === "folder" ? "โฟลเดอร์" : sizeText(Number(x.file_size))}</div>
+      <div class="item-icon">${item.item_type === "folder" ? "📁" : "▤"}</div>
+      <div class="item-name">${esc(item.name)}</div>
+      <div class="item-meta">${item.item_type === "folder" ? "โฟลเดอร์" : esc(sizeText(item.file_size))}</div>
       <div class="actions">
-        ${x.item_type === "folder"
-          ? `<button data-act="open" data-id="${x.id}">เปิด</button>`
-          : `<button data-act="download" data-id="${x.id}">ดาวน์โหลด</button>`}
-        <button data-act="rename" data-id="${x.id}">เปลี่ยนชื่อ</button>
-        <button class="danger" data-act="delete" data-id="${x.id}">ลบ</button>
+        ${item.item_type === "folder"
+          ? `<button data-act="open" data-id="${esc(item.id)}">เปิด</button>`
+          : `<button data-act="download" data-id="${esc(item.id)}">ดาวน์โหลด</button>`}
+        <button data-act="rename" data-id="${esc(item.id)}">เปลี่ยนชื่อ</button>
+        <button class="danger" data-act="delete" data-id="${esc(item.id)}">ลบ</button>
       </div>
     </article>`).join("");
 }
-
-$("items").addEventListener("click", async e => {
-  const b = e.target.closest("button[data-act]");
-  if (!b) return;
-  const item = entries.find(x => x.id === b.dataset.id);
+$("driveItems").addEventListener("click", async event => {
+  const button = event.target.closest("button[data-act]");
+  if (!button || !user) return;
+  const item = entries.find(row => row.id === button.dataset.id);
   if (!item) return;
-  const act = b.dataset.act;
+  const action = button.dataset.act;
 
-  if (act === "open") {
+  if (action === "open") {
     currentFolder = item.id;
     await loadItems();
     return;
   }
-  if (act === "download") {
-    say("กำลังดาวน์โหลด...");
+  if (action === "download") {
+    status("driveStatus", "กำลังดาวน์โหลด...");
     const {data,error} = await db.storage.from(BUCKET).download(item.storage_path);
-    if (error) { say("ดาวน์โหลดไม่สำเร็จ: " + error.message); return; }
+    if (error) {
+      status("driveStatus", "ดาวน์โหลดไม่สำเร็จ: " + error.message);
+      return;
+    }
     const url = URL.createObjectURL(data);
-    const a = document.createElement("a");
-    a.href = url; a.download = item.name; a.click();
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = item.name;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
     setTimeout(() => URL.revokeObjectURL(url), 30000);
-    say("ดาวน์โหลดแล้ว");
+    status("driveStatus", "ดาวน์โหลดแล้ว");
     return;
   }
-  if (act === "rename") {
+  if (action === "rename") {
     const name = prompt("ชื่อใหม่", item.name)?.trim();
     if (!name || name === item.name) return;
     const {error} = await db.from("nx_drive_items")
-      .update({name,updated_at:new Date().toISOString()}).eq("id",item.id);
-    if (error) { say("เปลี่ยนชื่อไม่สำเร็จ: " + error.message); return; }
+      .update({name,updated_at:new Date().toISOString()})
+      .eq("id",item.id).eq("owner_id",user.id);
+    if (error) {
+      status("driveStatus", "เปลี่ยนชื่อไม่สำเร็จ: " + error.message);
+      return;
+    }
     await loadItems();
+    await loadOverview();
     return;
   }
-  if (act === "delete") {
+  if (action === "delete") {
     if (!confirm(`ยืนยันลบ "${item.name}" ?`)) return;
     if (item.item_type === "folder") {
-      const {count,error:checkErr} = await db.from("nx_drive_items")
+      const {count,error:checkError} = await db.from("nx_drive_items")
         .select("id",{count:"exact",head:true}).eq("parent_id",item.id);
-      if (checkErr) { say(checkErr.message); return; }
-      if (count > 0) { say("โฟลเดอร์ยังมีรายการอยู่ กรุณาย้ายหรือลบรายการข้างในก่อน"); return; }
+      if (checkError) {
+        status("driveStatus", checkError.message);
+        return;
+      }
+      if (count > 0) {
+        status("driveStatus", "โฟลเดอร์ยังมีรายการอยู่ กรุณาลบรายการข้างในก่อน");
+        return;
+      }
     } else {
-      const {error:storageErr} = await db.storage.from(BUCKET).remove([item.storage_path]);
-      if (storageErr) { say("ลบไฟล์ไม่สำเร็จ: " + storageErr.message); return; }
+      const {error:storageError} = await db.storage.from(BUCKET).remove([item.storage_path]);
+      if (storageError) {
+        status("driveStatus", "ลบไฟล์ไม่สำเร็จ: " + storageError.message);
+        return;
+      }
     }
-    const {error} = await db.from("nx_drive_items").delete().eq("id",item.id);
-    if (error) { say("ลบรายการไม่สำเร็จ: " + error.message); return; }
+    const {error} = await db.from("nx_drive_items")
+      .delete().eq("id",item.id).eq("owner_id",user.id);
+    if (error) {
+      status("driveStatus", "ลบรายการไม่สำเร็จ: " + error.message);
+      return;
+    }
     await loadItems();
+    await loadOverview();
   }
 });
 
-$("newFolder").onclick = async () => {
+$("newFolder").addEventListener("click", async () => {
+  if (!user) return;
   const name = prompt("ชื่อโฟลเดอร์")?.trim();
   if (!name) return;
-  say("กำลังสร้างโฟลเดอร์...");
+  status("driveStatus", "กำลังสร้างโฟลเดอร์...");
   const {error} = await db.from("nx_drive_items").insert({
-    owner_id:user.id, parent_id:currentFolder,
-    item_type:"folder", name, storage_path:null
+    owner_id:user.id,parent_id:currentFolder,item_type:"folder",
+    name,storage_path:null
   });
-  if (error) { say("สร้างโฟลเดอร์ไม่สำเร็จ: " + error.message); return; }
+  if (error) {
+    status("driveStatus", "สร้างโฟลเดอร์ไม่สำเร็จ: " + error.message);
+    return;
+  }
   await loadFolders();
   await loadItems();
-};
-
-async function loadFolders() {
-  const {data,error} = await db.from("nx_drive_items")
-    .select("id,name,parent_id").eq("item_type","folder");
-  if (error) { say(error.message); return; }
-  folders = data || [];
-}
-
-$("uploadBtn").onclick = () => $("fileInput").click();
-$("fileInput").addEventListener("change", async e => {
-  const files = Array.from(e.target.files || []);
-  e.target.value = "";
+  await loadOverview();
+});
+$("uploadBtn").addEventListener("click", () => $("fileInput").click());
+$("fileInput").addEventListener("change", async event => {
+  const files = Array.from(event.target.files || []);
+  event.target.value = "";
   if (!files.length || !user) return;
-
   for (const file of files) {
-    say("กำลังอัปโหลด: " + file.name);
-    const safeName = file.name.replace(/[\\/]/g,"_");
-    const path = `${user.id}/${crypto.randomUUID()}-${safeName}`;
-    const {error:upErr} = await db.storage.from(BUCKET)
-      .upload(path,file,{contentType:file.type || "application/octet-stream", upsert:false});
-    if (upErr) { say(`อัปโหลด ${file.name} ไม่สำเร็จ: ${upErr.message}`); continue; }
-
-    const {error:dbErr} = await db.from("nx_drive_items").insert({
-      owner_id:user.id, parent_id:currentFolder, item_type:"file",
-      name:file.name, storage_path:path,
-      mime_type:file.type || "application/octet-stream", file_size:file.size
+    status("driveStatus", "กำลังอัปโหลด: " + file.name);
+    const path = `${user.id}/${crypto.randomUUID()}-${safeFileName(file.name)}`;
+    const {error:uploadError} = await db.storage.from(BUCKET).upload(path,file,{
+      contentType:file.type || "application/octet-stream",upsert:false
     });
-    if (dbErr) {
+    if (uploadError) {
+      status("driveStatus", `อัปโหลด ${file.name} ไม่สำเร็จ: ${uploadError.message}`);
+      continue;
+    }
+    const {error:dbError} = await db.from("nx_drive_items").insert({
+      owner_id:user.id,parent_id:currentFolder,item_type:"file",
+      name:file.name,storage_path:path,
+      mime_type:file.type || "application/octet-stream",file_size:file.size
+    });
+    if (dbError) {
       await db.storage.from(BUCKET).remove([path]);
-      say(`บันทึกรายการ ${file.name} ไม่สำเร็จ: ${dbErr.message}`);
+      status("driveStatus", `บันทึกรายการ ${file.name} ไม่สำเร็จ: ${dbError.message}`);
     }
   }
   await loadItems();
+  await loadOverview();
+});
+$("driveRefresh").addEventListener("click", async () => {
+  await loadFolders();
+  await loadItems();
+});
+$("driveSearch").addEventListener("input", renderItems);
+$("upFolder").addEventListener("click", async () => {
+  if (!currentFolder) return;
+  const folder = folders.find(item => item.id === currentFolder);
+  currentFolder = folder?.parent_id || null;
+  await loadItems();
 });
 
-$("refresh").onclick = async () => {
-  await loadFolders();
-  await loadItems();
-};
-$("search").addEventListener("input",renderItems);
-
-async function start(session) {
-  user = session?.user || null;
-  if (!user) { showAuth(); return; }
-  currentFolder = null;
-  showDrive();
-  await loadFolders();
-  await loadItems();
+/* Avatar Asset Vault: uses the new RLS-protected table. */
+const ASSET_CATEGORIES = [
+  "Accessory","Hair","Face","Shirt","Pants","Body Part",
+  "Layered Clothing","Animation","Bundle","Texture","Model","Other"
+];
+function resetAssetForm() {
+  $("assetForm").reset();
+  $("assetRecordId").value = "";
+  $("existingFile").textContent = "";
+  $("editorTitle").textContent = "เพิ่ม Asset";
+  $("assetEditor").hidden = true;
 }
+function openAssetForm(asset = null) {
+  $("assetEditor").hidden = false;
+  $("editorTitle").textContent = asset ? "แก้ไข Asset" : "เพิ่ม Asset";
+  $("assetRecordId").value = asset?.id || "";
+  $("assetName").value = asset?.name || "";
+  $("assetId").value = asset?.asset_id || "";
+  $("assetCat").value = ASSET_CATEGORIES.includes(asset?.category) ? asset.category : "Other";
+  $("assetUrl").value = asset?.asset_url || "";
+  $("assetDescription").value = asset?.description || "";
+  $("assetTags").value = (asset?.tags || []).join(", ");
+  $("assetFile").value = "";
+  $("existingFile").textContent = asset?.file_name
+    ? `ไฟล์ปัจจุบัน: ${asset.file_name} (${sizeText(asset.file_size)})`
+    : "ยังไม่มีไฟล์แนบ";
+  $("assetEditor").scrollIntoView({behavior:"smooth",block:"start"});
+}
+$("addAsset").addEventListener("click", () => openAssetForm());
+$("cancelAsset").addEventListener("click", resetAssetForm);
+$("cancelAsset2").addEventListener("click", resetAssetForm);
+$("assetRefresh").addEventListener("click", loadAssets);
+$("assetSearch").addEventListener("input", renderAssets);
+$("assetCategory").addEventListener("change", renderAssets);
 
-db.auth.onAuthStateChange((_event,session) => {
-  start(session);
+async function loadAssets() {
+  if (!user) return;
+  status("assetStatus", "กำลังโหลด Avatar Assets...");
+  const {data,error} = await db.from("nx_avatar_assets")
+    .select("*").order("created_at",{ascending:false}).limit(500);
+  if (error) {
+    assets = [];
+    renderAssets();
+    status("assetStatus", "โหลด Asset ไม่สำเร็จ: " + error.message +
+      " — ตรวจสอบว่ารัน SQL สร้าง nx_avatar_assets แล้ว");
+    return;
+  }
+  assets = data || [];
+  renderAssets();
+  status("assetStatus", `มี ${assets.length} รายการ`);
+}
+function renderAssets() {
+  const term = $("assetSearch").value.trim().toLowerCase();
+  const category = $("assetCategory").value;
+  const filtered = assets.filter(asset => {
+    const text = [
+      asset.name,asset.asset_id,asset.category,asset.description,
+      asset.asset_url,(asset.tags || []).join(" ")
+    ].join(" ").toLowerCase();
+    return text.includes(term) && (!category || asset.category === category);
+  });
+  if (!filtered.length) {
+    $("assetItems").innerHTML =
+      '<div class="empty"><strong>ยังไม่พบ Asset</strong>เพิ่ม Asset ID หรือแนบไฟล์ที่คุณมีสิทธิ์ใช้งานได้เลย</div>';
+    return;
+  }
+  $("assetItems").innerHTML = filtered.map(asset => `
+    <article class="item">
+      <div class="item-icon">${asset.asset_url
+        ? `<span aria-hidden="true">◇</span>`
+        : asset.file_name ? "▤" : "◇"}</div>
+      <div class="item-name">${esc(asset.name)}</div>
+      <div><span class="badge">${esc(asset.category)}</span></div>
+      <div class="item-meta" style="margin-top:8px">ID: ${esc(asset.asset_id || "—")}</div>
+      ${asset.file_name ? `<div class="item-meta">ไฟล์: ${esc(asset.file_name)}</div>` : ""}
+      <div>${(asset.tags || []).slice(0,8).map(tag => `<span class="tag">${esc(tag)}</span>`).join("")}</div>
+      <div class="actions">
+        <button data-asset-act="edit" data-id="${esc(asset.id)}">แก้ไข</button>
+        ${asset.file_path ? `<button data-asset-act="file" data-id="${esc(asset.id)}">ดาวน์โหลดไฟล์</button>` : ""}
+        ${asset.asset_url ? `<button data-asset-act="link" data-id="${esc(asset.id)}">เปิดลิงก์</button>` : ""}
+        <button class="danger" data-asset-act="delete" data-id="${esc(asset.id)}">ลบ</button>
+      </div>
+    </article>`).join("");
+}
+$("assetItems").addEventListener("click", async event => {
+  const button = event.target.closest("button[data-asset-act]");
+  if (!button || !user) return;
+  const asset = assets.find(row => row.id === button.dataset.id);
+  if (!asset) return;
+  const action = button.dataset.assetAct;
+
+  if (action === "edit") {
+    openAssetForm(asset);
+    return;
+  }
+  if (action === "link") {
+    try {
+      const url = new URL(asset.asset_url);
+      if (url.protocol !== "https:" && url.protocol !== "http:") throw new Error("Invalid URL");
+      window.open(url.href,"_blank","noopener,noreferrer");
+    } catch {
+      status("assetStatus","ลิงก์ไม่ถูกต้อง");
+    }
+    return;
+  }
+  if (action === "file") {
+    status("assetStatus","กำลังสร้างลิงก์ดาวน์โหลด...");
+    const {data,error} = await db.storage.from(BUCKET).createSignedUrl(asset.file_path,60);
+    if (error) {
+      status("assetStatus","ดาวน์โหลดไม่สำเร็จ: " + error.message);
+      return;
+    }
+    const anchor = document.createElement("a");
+    anchor.href = data.signedUrl;
+    anchor.download = asset.file_name || "asset-file";
+    anchor.target = "_blank";
+    anchor.rel = "noopener";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    status("assetStatus","สร้างลิงก์ดาวน์โหลดแล้ว");
+    return;
+  }
+  if (action === "delete") {
+    if (!confirm(`ยืนยันลบ Asset "${asset.name}" ?`)) return;
+    if (asset.file_path) {
+      const {error:storageError} = await db.storage.from(BUCKET).remove([asset.file_path]);
+      if (storageError) {
+        status("assetStatus","ลบไฟล์ไม่สำเร็จ: " + storageError.message);
+        return;
+      }
+    }
+    const {error} = await db.from("nx_avatar_assets").delete()
+      .eq("id",asset.id).eq("owner_id",user.id);
+    if (error) {
+      status("assetStatus","ลบ Asset ไม่สำเร็จ: " + error.message);
+      return;
+    }
+    await loadAssets();
+    await loadOverview();
+  }
 });
-db.auth.getSession().then(({data}) => start(data.session));
+
+$("assetForm").addEventListener("submit", async event => {
+  event.preventDefault();
+  if (!user || busy) return;
+  busy = true;
+  $("saveAsset").disabled = true;
+  status("assetStatus","กำลังบันทึก Asset...");
+  let uploadedPath = null;
+  try {
+    const recordId = $("assetRecordId").value;
+    const previous = assets.find(item => item.id === recordId);
+    const file = $("assetFile").files?.[0] || null;
+    let filePath = previous?.file_path || null;
+    let fileName = previous?.file_name || null;
+    let fileSize = Number(previous?.file_size || 0);
+    let mimeType = previous?.mime_type || "application/octet-stream";
+
+    if (file) {
+      const path = `${user.id}/${crypto.randomUUID()}-${safeFileName(file.name)}`;
+      const {error:uploadError} = await db.storage.from(BUCKET).upload(path,file,{
+        contentType:file.type || "application/octet-stream",upsert:false
+      });
+      if (uploadError) throw new Error("อัปโหลดไฟล์ไม่สำเร็จ: " + uploadError.message);
+      uploadedPath = path;
+      filePath = path;
+      fileName = file.name;
+      fileSize = file.size;
+      mimeType = file.type || "application/octet-stream";
+    }
+
+    const rawUrl = $("assetUrl").value.trim();
+    if (rawUrl) {
+      const parsed = new URL(rawUrl);
+      if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+        throw new Error("URL ต้องเป็น HTTP หรือ HTTPS");
+      }
+    }
+    const tags = [...new Set($("assetTags").value.split(",")
+      .map(tag => tag.trim()).filter(Boolean).slice(0,30))];
+    const payload = {
+      owner_id:user.id,
+      name:$("assetName").value.trim(),
+      asset_id:$("assetId").value.trim(),
+      category:$("assetCat").value,
+      asset_url:rawUrl,
+      description:$("assetDescription").value.trim(),
+      tags,
+      file_path:filePath,
+      file_name:fileName,
+      file_size:fileSize,
+      mime_type:mimeType,
+      updated_at:new Date().toISOString()
+    };
+    if (!payload.name) throw new Error("กรุณากรอกชื่อ Asset");
+    if (!ASSET_CATEGORIES.includes(payload.category)) throw new Error("หมวดหมู่ไม่ถูกต้อง");
+
+    let result;
+    if (recordId) {
+      result = await db.from("nx_avatar_assets").update(payload)
+        .eq("id",recordId).eq("owner_id",user.id);
+    } else {
+      result = await db.from("nx_avatar_assets").insert(payload);
+    }
+    if (result.error) throw new Error("บันทึกข้อมูลไม่สำเร็จ: " + result.error.message);
+
+    if (file && previous?.file_path && previous.file_path !== filePath) {
+      const {error:removeError} = await db.storage.from(BUCKET).remove([previous.file_path]);
+      if (removeError) {
+        status("assetStatus","บันทึกแล้ว แต่ลบไฟล์เก่าไม่สำเร็จ: " + removeError.message);
+      }
+    }
+    uploadedPath = null;
+    resetAssetForm();
+    await loadAssets();
+    await loadOverview();
+    status("assetStatus","บันทึก Asset สำเร็จ");
+  } catch (error) {
+    if (uploadedPath) await db.storage.from(BUCKET).remove([uploadedPath]);
+    status("assetStatus",error.message || "เกิดข้อผิดพลาดขณะบันทึก");
+  } finally {
+    busy = false;
+    $("saveAsset").disabled = false;
+  }
+});
+
+/* Overview: read-only counts from the existing tables. */
+async function loadOverview() {
+  if (!user) return;
+  const jobs = await Promise.all([
+    db.from("nx_drive_items").select("id",{count:"exact",head:true}),
+    db.from("nx_avatar_assets").select("id",{count:"exact",head:true}),
+    db.from("nx_cache_entries").select("id",{count:"exact",head:true})
+  ]);
+  $("statFiles").textContent = jobs[0].error ? "—" : String(jobs[0].count ?? 0);
+  $("statAssets").textContent = jobs[1].error ? "—" : String(jobs[1].count ?? 0);
+  $("statCache").textContent = jobs[2].error ? "—" : String(jobs[2].count ?? 0);
+
+  const {data,error} = await db.from("nx_avatar_assets")
+    .select("id,name,category,asset_id").order("created_at",{ascending:false}).limit(5);
+  if (error) {
+    $("recentAssets").textContent = "ยังโหลดรายการล่าสุดไม่ได้ หากยังไม่ได้สร้างตาราง ให้รัน SQL ในขั้นที่ 1";
+    return;
+  }
+  if (!data?.length) {
+    $("recentAssets").textContent = "ยังไม่มี Asset — เริ่มต้นเพิ่ม ID ของ Avatar ที่คุณต้องการเก็บได้เลย";
+    return;
+  }
+  $("recentAssets").innerHTML = data.map(asset => `
+    <div class="settings-line">
+      <span><strong>${esc(asset.name)}</strong><br><span class="muted">${esc(asset.category)} · ID: ${esc(asset.asset_id || "—")}</span></span>
+      <button data-goto="assets">เปิด</button>
+    </div>`).join("");
+  $("recentAssets").querySelectorAll("[data-goto]").forEach(button => {
+    button.addEventListener("click", () => navigate(button.dataset.goto));
+  });
+}
+$("overviewRefresh").addEventListener("click", loadOverview);
+$("settingsRefresh").addEventListener("click", async () => {
+  if (!user) return;
+  const {data,error} = await db.auth.getUser();
+  if (error) {
+    globalStatus("ตรวจสอบบัญชีไม่สำเร็จ: " + error.message);
+    return;
+  }
+  user = data.user;
+  showApp();
+  globalStatus("อัปเดตข้อมูลบัญชีแล้ว");
+});
+
+/* Do not expose service-role keys or create public asset URLs for private files. */
 </script>
 </body>
-  </html>
-  
+</html>
