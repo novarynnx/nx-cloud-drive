@@ -16,7 +16,7 @@
   const PAGE_SIZE = 30;
   const state = {
     query: "",
-    category: "all",
+    category: "11",
     nextPageCursor: null,
     results: [],
     loading: false,
@@ -81,11 +81,12 @@
     const query = el("input", { id: "nxRobloxQuery", type: "search", placeholder: "ค้นหา เช่น black hair, cat ears", maxlength: "100", autocomplete: "off", "aria-label": "ค้นหา Roblox Catalog" });
     const category = el("select", { id: "nxRobloxCategory", "aria-label": "หมวดหมู่ Roblox Catalog" });
     [
-      ["all", "ทุกหมวดหมู่"], ["11", "Accessories"], ["3", "Clothing"],
+      ["11", "Accessories"], ["1", "ทุกหมวดหมู่"], ["3", "Clothing"],
       ["4", "Body Parts"], ["12", "Animations"],
     ].forEach(([value, label]) => category.add(el("option", { value }, label)));
+    category.value = "11";
     const searchButton = el("button", { id: "nxRobloxSearchButton", class: "primary", type: "button" }, "ค้นหา");
-    const status = el("div", { id: "nxRobloxCatalogStatus", class: "nx-cat-status", role: "status" }, "กำลังเตรียม Roblox Catalog…");
+    const status = el("div", { id: "nxRobloxCatalogStatus", class: "nx-cat-status", role: "status" }, "กำลังโหลดไอเทมแนะนำจาก Roblox Catalog…");
     const results = el("div", { id: "nxRobloxCatalogResults", class: "nx-cat-grid" });
     const footer = el("div", { class: "nx-cat-footer" });
     const loadMore = el("button", { id: "nxRobloxLoadMore", type: "button", disabled: true }, "โหลดรายการเพิ่ม");
@@ -106,19 +107,17 @@
         searchCatalog(false);
       }
     });
-    category.addEventListener("change", () => {
-      if (query.value.trim()) searchCatalog(false);
-    });
+    category.addEventListener("change", () => searchCatalog(false));
     loadMore.addEventListener("click", () => searchCatalog(true));
     clear.addEventListener("click", () => {
       state.query = "";
-      state.category = "all";
+      state.category = "11";
       state.nextPageCursor = null;
       state.results = [];
       query.value = "";
-      category.value = "all";
+      category.value = "11";
       results.replaceChildren();
-      status.textContent = "พิมพ์ชื่อไอเทมแล้วกดค้นหา";
+      status.textContent = "พิมพ์ชื่อไอเทมเพื่อค้นหา หรือเลือกหมวดหมู่เพื่อดูรายการ";
       loadMore.disabled = true;
     });
     results.addEventListener("click", (event) => {
@@ -193,14 +192,9 @@
   async function searchCatalog(append) {
     if (state.loading) return;
     const query = $("nxRobloxQuery")?.value.trim() || "";
-    if (!query) {
-      setStatus("กรอกคำค้นก่อน เช่น black hair หรือ cat ears");
-      $("nxRobloxQuery")?.focus();
-      return;
-    }
     if (!append) {
       state.query = query;
-      state.category = $("nxRobloxCategory")?.value || "all";
+      state.category = $("nxRobloxCategory")?.value || "11";
       state.nextPageCursor = null;
       state.results = [];
       $("nxRobloxCatalogResults")?.replaceChildren();
@@ -214,10 +208,11 @@
     const loadMore = $("nxRobloxLoadMore");
     if (searchButton) searchButton.disabled = true;
     if (loadMore) loadMore.disabled = true;
-    setStatus(append ? "กำลังโหลดรายการถัดไป…" : `กำลังค้นหา “${state.query}” จาก Roblox Catalog…`);
+    setStatus(append ? "กำลังโหลดรายการถัดไป…" : (state.query ? `กำลังค้นหา “${state.query}” จาก Roblox Catalog…` : "กำลังโหลดไอเทมแนะนำจาก Roblox Catalog…"));
 
-    const params = new URLSearchParams({ Keyword: state.query, Limit: String(PAGE_SIZE), SortType: "0", SortAggregation: "5" });
-    if (state.category !== "all") params.set("Category", state.category);
+    const params = new URLSearchParams({ Limit: String(PAGE_SIZE), SortType: "0", SortAggregation: "5" });
+    if (state.query) params.set("Keyword", state.query);
+    if (state.category) params.set("Category", state.category);
     if (append && state.nextPageCursor) params.set("Cursor", state.nextPageCursor);
 
     const controller = new AbortController();
@@ -240,13 +235,15 @@
       const pageItems = Array.isArray(payload.data) ? payload.data : [];
       state.nextPageCursor = payload.nextPageCursor || payload.nextPageToken || null;
       if (!pageItems.length && !append) {
-        setStatus("ไม่พบไอเทม ลองคำค้นอื่นหรือเปลี่ยนหมวดหมู่");
+        setStatus(state.query ? "ไม่พบไอเทม ลองคำค้นอื่นหรือเปลี่ยนหมวดหมู่" : "ไม่พบรายการในหมวดนี้ ลองเลือกทุกหมวดหมู่หรือค้นหาด้วยชื่อ");
         return;
       }
 
       const startIndex = state.results.length;
       state.results.push(...pageItems);
-      const thumbs = await getThumbnails(pageItems);
+      // Thumbnail lookup is optional; never let it hold the entire browser indefinitely.
+      const thumbTimeout = new Promise((resolve) => setTimeout(() => resolve(pageItems.map((item) => fallbackThumb(item?.id ?? ""))), 7000));
+      const thumbs = await Promise.race([getThumbnails(pageItems), thumbTimeout]);
       if (requestId !== state.request) return;
       renderResults(pageItems, thumbs, startIndex);
       setStatus(`แสดง ${state.results.length} รายการ${state.nextPageCursor ? " · ยังมีรายการถัดไป" : " · ถึงรายการสุดท้ายแล้ว"}`);
@@ -349,14 +346,25 @@
 
   function boot() {
     addStyles();
-    if (!buildPanel()) {
-      // The page module can still be initializing; retry a few times after parse.
-      let attempts = 0;
-      const timer = setInterval(() => {
-        attempts += 1;
-        if (buildPanel() || attempts >= 20) clearInterval(timer);
-      }, 150);
+    const panel = buildPanel();
+    if (panel) {
+      // Browse accessories automatically on first load, so the panel is not stuck in a prep state.
+      setTimeout(() => searchCatalog(false), 250);
+      return;
     }
+    // The page module can still be initializing; retry a few times after parse.
+    let attempts = 0;
+    const timer = setInterval(() => {
+      attempts += 1;
+      const readyPanel = buildPanel();
+      if (readyPanel) {
+        clearInterval(timer);
+        setTimeout(() => searchCatalog(false), 250);
+      } else if (attempts >= 30) {
+        clearInterval(timer);
+        console.error("NX Roblox Catalog: Could not find #addCatalog in avatar-studio.html");
+      }
+    }, 200);
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot, { once: true });
